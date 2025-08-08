@@ -64,6 +64,7 @@
     <Compile Include="Components\Helper.cs" />
     <Compile Include="Entity\Card.cs" />
     <Compile Include="Components\Ai.cs" />
+    <Compile Include="GameLogic.cs" />
     <Compile Include="Paint.cs" />
     <Compile Include="Game.cs">
       <SubType>Form</SubType>
@@ -76,6 +77,12 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Components\Deck.cs" />
+    <Compile Include="WinLogic.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WinLogic.Designer.cs">
+      <DependentUpon>WinLogic.cs</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="Game.resx">
       <DependentUpon>Game.cs</DependentUpon>
     </EmbeddedResource>
@@ -89,6 +96,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="WinLogic.resx">
+      <DependentUpon>WinLogic.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

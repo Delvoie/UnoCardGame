@@ -168,6 +168,8 @@ namespace UNO
 
             // Hand the turn over to the player
             Player.Play();
+            // checking to see if the Ai has won
+            GameLogic.CheckGameEnd();
         }
 
         /// <summary>

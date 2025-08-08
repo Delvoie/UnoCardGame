@@ -126,6 +126,8 @@ namespace UNO
         /// </summary>
         public static void Click(Form f)
         {
+
+
             // List of cards that the user clicked on.
             // A user may click multiple overlapping cards.
             List<Card> clickedCards = new List<Card>();
@@ -135,9 +137,15 @@ namespace UNO
             {
                 // Get the current card.
                 Card card = cards[i];
+        {
+            // checking to see if the game has already been closed/reset
+            if (f == null || f.IsDisposed || f.Disposing)
+                return;
+        }
 
-                // Get mouse position.
-                Point p = f.PointToClient(Cursor.Position);
+
+        // Get mouse position.
+        Point p = f.PointToClient(Cursor.Position);
 
                 // Card bounds (rectangle).
                 Rectangle bounds = new Rectangle(card.Position.X, card.Position.Y, card.Dimensions.Width, card.Dimensions.Height);
