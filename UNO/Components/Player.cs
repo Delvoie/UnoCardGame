@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
+using System.Windows.Forms;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using UNO.Cards;
 using UNO.Components;
 
@@ -136,7 +135,7 @@ namespace UNO
 
             // Offset (odsazení) jednotlivých kartiček. Zkrátka o jak velký kus se budou jednotlivé kartičky překrývat.
             // Odsazení roste s přibývajícím počtem karet v ruce, aby se jich na obrazovku vešlo co nejvíce (počet je omezen defaultně na 20)
-            int xOffset = -(hand.Count * 7);
+            int xOffset = - (hand.Count * 7);
 
             // Spočítá celkovou šířku karet v ruce včetně odsazení
             // Projde všechny karty v ruce
@@ -203,37 +202,45 @@ namespace UNO
                 await Task.Delay(350);
             }
         }
+
         /// <summary>
         /// Řeší uživatelovi (hráčovi) klik akce (události)
         /// </summary>
         public static void Click(Form f)
         {
+            // Stejný postup jako klik event u třídy balíčku (Deck.cs) - podrobněji rozepsáno tam
+            // Kolekce karet, na které bylo kliknuto - zatím jen její založení
             List<Card> clickedCards = new List<Card>();
 
+            // Projde všechny karty v ruce
             foreach (Card card in hand)
             {
+                // Získá pozici myši
                 Point p = f.PointToClient(Cursor.Position);
+
+                // Cards bounds
                 Rectangle bounds = new Rectangle(card.Position.X, card.Position.Y, card.Dimensions.Width, card.Dimensions.Height);
 
+                // Klikl uživatel na právě procházenou kartu?
                 if (bounds.Contains(p))
                 {
+                    // Přidá kartu do kolekce
                     clickedCards.Add(card);
                 }
             }
 
+            // Klikli jsme na nějakou kartu?
             if (clickedCards.Count == 0)
+                // Ne - můžeme se vklídku vrátit
                 return;
 
+            // Spustí klik metodu karty nejblíže k uživateli
             clickedCards.OrderByDescending(item => item.ZIndex).First().MouseClick();
+
+            // Vyresetuje kolekci nakliklých karet pro další použití při dalším klik eventu
             clickedCards.Clear();
-
-            if (hand.Count == 0)
-            {
-                WinLogic winForm = new WinLogic(WinLogic.GameResult.Win);
-                winForm.ShowDialog();
-            }
-
         }
+
         // Odehrávací metoda hráče.
         public static void Play()
         {
@@ -246,13 +253,8 @@ namespace UNO
         /// </summary>
         public static void End()
         {
-            // Checking if player won after their turn
-            GameLogic.CheckGameEnd();
             // Ukončí své kolo
             canPlay = false;
         }
     }
-
-
-
 }

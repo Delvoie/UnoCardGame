@@ -20,10 +20,12 @@ namespace UNO.Cards
     /// <summary>
     /// Possible card types
     /// Classic - classic card with color and number
+    /// Plus2 - Draw 2 card that forces opponent to draw 2 cards
     /// </summary>
     public enum Type
     {
-        Classic
+        Classic,
+        Plus2
     }
 
     /// <summary>
@@ -47,7 +49,7 @@ namespace UNO.Cards
         public Color Color { get; set; }
 
         /// <summary>
-        /// Card number
+        /// Card number (for classic cards) or special value (for +2 cards, this will be -1)
         /// </summary>
         public int Number { get; set; }
 
@@ -132,7 +134,7 @@ namespace UNO.Cards
         private int targetAngle = 0;
 
         /// <summary>
-        /// Constructor
+        /// Constructor for classic numbered cards
         /// </summary>
         public Card(Color color, int number)
         {
@@ -148,6 +150,61 @@ namespace UNO.Cards
 
             // Default type
             Type = Type.Classic;
+        }
+
+        /// <summary>
+        /// Constructor for special cards (+2, etc.)
+        /// </summary>
+        public Card(Color color, Type type)
+        {
+            // Initializes the initial internal state of the object 
+            Color = color;
+            Type = type;
+
+            // Special cards don't have numbers
+            Number = -1;
+
+            // Defines default card dimensions
+            Dimensions = new Size(200, 250);
+
+            // Default state
+            State = State.Normal;
+        }
+
+        /// <summary>
+        /// Check if this card can be played on top of another card
+        /// </summary>
+        public bool CanPlayOn(Card topCard)
+        {
+            // Can play if colors match
+            if (this.Color.ToArgb() == topCard.Color.ToArgb())
+                return true;
+
+            // Can play if it's the same type of special card
+            if (this.Type == topCard.Type && this.Type != Type.Classic)
+                return true;
+
+            // Can play if numbers match (for classic cards)
+            if (this.Type == Type.Classic && topCard.Type == Type.Classic && this.Number == topCard.Number)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get display text for the card
+        /// </summary>
+        public string GetDisplayText()
+        {
+            switch (Type)
+            {
+                case Type.Classic:
+                    return Number.ToString();
+                case Type.Plus2:
+                    return "+2";
+                default:
+                    return "";
+            }
         }
 
         /// <summary>
@@ -228,12 +285,12 @@ namespace UNO.Cards
                 // Is rotation greater than the target angle
                 if (Rotation > targetAngle)
                 {
-                    Rotation -= (Math.Abs(Rotation-targetAngle) > 15) ? 15 : 1;
+                    Rotation -= (Math.Abs(Rotation - targetAngle) > 15) ? 15 : 1;
                 }
                 // Is rotation less than the target angle
                 else if (Rotation < targetAngle)
                 {
-                    Rotation += (Math.Abs(Rotation-targetAngle) > 15) ? 15 : 1;
+                    Rotation += (Math.Abs(Rotation - targetAngle) > 15) ? 15 : 1;
                 }
                 // Target and actual rotation match
                 else
@@ -269,161 +326,188 @@ namespace UNO.Cards
             // If the card is face down
             if (State == State.Back)
             {
-                
+
                 int borderPadding = 15;
 
-                
+
                 g.TranslateTransform(Position.X + (Dimensions.Width / 2), Position.Y + (Dimensions.Height / 2));
 
-                
+
                 g.RotateTransform(Rotation);
 
-                
+
                 g.ScaleTransform(flipX, 1);
 
-                
+
                 g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                
+
                 int pbs = 10;
 
-                
+
                 if (Playable)
                 {
-                    
+
                     using (LinearGradientBrush brush = new LinearGradientBrush(new Point(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs), new Point(Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), Color.FromArgb(255, 217, 0), Color.FromArgb(231, 66, 0)))
                         g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs, Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), 10));
                 }
 
 
-                
+
                 using (SolidBrush brush = new SolidBrush(Color.FromArgb(50, Color.Black)))
                     g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - 1, -(Dimensions.Height / 2) - 1, Dimensions.Width + 2, Dimensions.Height + 2), 10));
 
-                
+
                 g.FillPath(Brushes.White, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2), -(Dimensions.Height / 2), Dimensions.Width, Dimensions.Height), 10));
 
-                
+
                 using (SolidBrush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
                     g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) + borderPadding, -(Dimensions.Height / 2) + borderPadding, Dimensions.Width - (borderPadding * 2), Dimensions.Height - (borderPadding * 2)), 10));
 
-                
+
                 g.RotateTransform(-45f);
 
-               
+
                 g.FillPath(Brushes.White, Paint.Ellipse(new Point(0, 0), 75, 105));
 
-                
+
                 g.ScaleTransform(flipX, 1);
 
-               
+
                 StringFormat format = new StringFormat();
                 format.LineAlignment = StringAlignment.Center;
                 format.Alignment = StringAlignment.Center;
 
-               
+
                 g.TextRenderingHint = TextRenderingHint.AntiAlias;
 
-                
+
                 using (SolidBrush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
                     g.DrawString("UNO", new Font("Segoe UI", 36, FontStyle.Bold), brush, new Point(), format);
 
-                
+
                 g.SmoothingMode = SmoothingMode.Default;
 
-               
+
                 g.ResetTransform();
 
-                
+
                 return;
             }
 
-            // If the card is a classic type
+            // Draw front face of card
+            DrawCardFront(g);
+        }
+
+        /// <summary>
+        /// Draws the front face of the card based on its type
+        /// </summary>
+        private void DrawCardFront(Graphics g)
+        {
+            int borderPadding = 15;
+
+            g.TranslateTransform(Position.X + (Dimensions.Width / 2), Position.Y + (Dimensions.Height / 2));
+            g.RotateTransform(Rotation);
+            g.ScaleTransform(flipX, 1);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            int pbs = 10;
+
+            // Playable highlight
+            if (Playable)
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(new Point(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs), new Point(Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), Color.FromArgb(255, 217, 0), Color.FromArgb(231, 66, 0)))
+                    g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs, Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), 10));
+            }
+
+            // Shadow
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(50, Color.Black)))
+                g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - 1, -(Dimensions.Height / 2) - 1, Dimensions.Width + 2, Dimensions.Height + 2), 10));
+
+            // White background
+            g.FillPath(Brushes.White, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2), -(Dimensions.Height / 2), Dimensions.Width, Dimensions.Height), 10));
+
+            // Colored background
+            using (SolidBrush brush = new SolidBrush(Color))
+                g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) + borderPadding, -(Dimensions.Height / 2) + borderPadding, Dimensions.Width - (borderPadding * 2), Dimensions.Height - (borderPadding * 2)), 10));
+
+            // Draw based on card type
             if (Type == Type.Classic)
             {
-                
-                int borderPadding = 15;
-
-                
-                g.TranslateTransform(Position.X + (Dimensions.Width / 2), Position.Y + (Dimensions.Height / 2));
-
-                
-                g.RotateTransform(Rotation);
-
-                
-                g.ScaleTransform(flipX, 1);
-
-                
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-
-                
-                int pbs = 10;
-
-                
-                if (Playable)
-                {
-                    
-                    using (LinearGradientBrush brush = new LinearGradientBrush(new Point(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs), new Point(Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), Color.FromArgb(255, 217, 0), Color.FromArgb(231, 66, 0)))
-                        g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - pbs, -(Dimensions.Height / 2) - pbs, Dimensions.Width + (pbs * 2), Dimensions.Height + (pbs * 2)), 10));
-                }
-
-               
-                using (SolidBrush brush = new SolidBrush(Color.FromArgb(50, Color.Black)))
-                    g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) - 1, -(Dimensions.Height / 2) - 1, Dimensions.Width + 2, Dimensions.Height + 2), 10));
-
-                
-                g.FillPath(Brushes.White, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2), -(Dimensions.Height / 2), Dimensions.Width, Dimensions.Height), 10));
-
-               
-                using (SolidBrush brush = new SolidBrush(Color))
-                    g.FillPath(brush, Paint.RoundedRectangle(new Rectangle(-(Dimensions.Width / 2) + borderPadding, -(Dimensions.Height / 2) + borderPadding, Dimensions.Width - (borderPadding * 2), Dimensions.Height - (borderPadding * 2)), 10));
-
-               
-                g.RotateTransform(45f);
-
-                
-                g.FillPath(Brushes.White, Paint.Ellipse(new Point(0, 0), 75, 105));
-
-                
-                StringFormat format = new StringFormat();
-                format.LineAlignment = StringAlignment.Center;
-                format.Alignment = StringAlignment.Center;
-
-                
-                g.TextRenderingHint = TextRenderingHint.AntiAlias;
-
-                
-                g.RotateTransform(-45f);
-
-                
-                using (SolidBrush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 76 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold | FontStyle.Italic), brush, new Point(-3, -3), format);
-
-                
-                using (SolidBrush brush = new SolidBrush(Color))
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 76 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold | FontStyle.Italic), brush, new Point(), format);
-
-               
-                if (Number == 6)
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic | FontStyle.Underline), Brushes.White, new Point(-76, -105));
-                else
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic), Brushes.White, new Point(-76, -105));
-                
-               
-                g.RotateTransform(-180f);
-
-               
-                if (Number == 6)
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic | FontStyle.Underline), Brushes.White, new Point(-76, -105));
-                else
-                    g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic), Brushes.White, new Point(-76, -105));
-
-                
-                g.SmoothingMode = SmoothingMode.Default;
-
-                
-                g.ResetTransform();
+                DrawClassicCard(g);
             }
+            else if (Type == Type.Plus2)
+            {
+                DrawPlus2Card(g);
+            }
+
+            g.SmoothingMode = SmoothingMode.Default;
+            g.ResetTransform();
+        }
+
+        /// <summary>
+        /// Draws a classic numbered card
+        /// </summary>
+        private void DrawClassicCard(Graphics g)
+        {
+            g.RotateTransform(45f);
+            g.FillPath(Brushes.White, Paint.Ellipse(new Point(0, 0), 75, 105));
+
+            StringFormat format = new StringFormat();
+            format.LineAlignment = StringAlignment.Center;
+            format.Alignment = StringAlignment.Center;
+
+            g.TextRenderingHint = TextRenderingHint.AntiAlias;
+            g.RotateTransform(-45f);
+
+            // Main number with shadow
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 76 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold | FontStyle.Italic), brush, new Point(-3, -3), format);
+
+            using (SolidBrush brush = new SolidBrush(Color))
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 76 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold | FontStyle.Italic), brush, new Point(), format);
+
+            // Corner numbers
+            if (Number == 6)
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic | FontStyle.Underline), Brushes.White, new Point(-76, -105));
+            else
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic), Brushes.White, new Point(-76, -105));
+
+            g.RotateTransform(-180f);
+
+            if (Number == 6)
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic | FontStyle.Underline), Brushes.White, new Point(-76, -105));
+            else
+                g.DrawString(Number.ToString(), new Font("Segoe UI", 18, FontStyle.Bold | FontStyle.Italic), Brushes.White, new Point(-76, -105));
+        }
+
+        /// <summary>
+        /// Draws a +2 card
+        /// </summary>
+        private void DrawPlus2Card(Graphics g)
+        {
+            g.RotateTransform(45f);
+            g.FillPath(Brushes.White, Paint.Ellipse(new Point(0, 0), 85, 115));
+
+            StringFormat format = new StringFormat();
+            format.LineAlignment = StringAlignment.Center;
+            format.Alignment = StringAlignment.Center;
+
+            g.TextRenderingHint = TextRenderingHint.AntiAlias;
+            g.RotateTransform(-45f);
+
+            // Main +2 text with shadow
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
+                g.DrawString("+2", new Font("Segoe UI", 60 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold), brush, new Point(-3, -3), format);
+
+            using (SolidBrush brush = new SolidBrush(Color))
+                g.DrawString("+2", new Font("Segoe UI", 60 - Math.Abs(zoomScale) + zoomMaximum, FontStyle.Bold), brush, new Point(), format);
+
+            // Corner +2 text
+            g.DrawString("+2", new Font("Segoe UI", 14, FontStyle.Bold), Brushes.White, new Point(-76, -105));
+
+            g.RotateTransform(-180f);
+            g.DrawString("+2", new Font("Segoe UI", 14, FontStyle.Bold), Brushes.White, new Point(-76, -105));
         }
 
         /// <summary>
@@ -460,9 +544,9 @@ namespace UNO.Cards
 
                 // Skip animation if parameter is true
                 if (skipAnimation)
-                {                   
-                    flipDown = false;                 
-                    State = State.Back;                   
+                {
+                    flipDown = false;
+                    State = State.Back;
                     flipX = -1;
                     Flipped = true;
                 }
@@ -509,18 +593,21 @@ namespace UNO.Cards
                 if (Playable)
                 {
                     // Play the card
-                    Player.hand.Remove(this);                    
+                    Player.hand.Remove(this);
                     Pile.cards.Add(this);
 
                     // Set random rotation (for visual effect)
                     Settle(new Random().Next(-180, 180));
+
+                    // Handle special card effects
+                    HandleSpecialCardEffect();
 
                     // Refresh layout to reposition cards
                     Game.container.RefreshLayout();
                 }
                 else
                 {
-                   
+
                     return;
                 }
             }
@@ -543,6 +630,27 @@ namespace UNO.Cards
 
             // Pass turn to Ai
             Ai.Play();
+        }
+
+        /// <summary>
+        /// Handle special card effects when played
+        /// </summary>
+        private void HandleSpecialCardEffect()
+        {
+            switch (Type)
+            {
+                case Type.Plus2:
+                    // Force AI to draw 2 cards
+                    Ai.Draw(2);
+
+                    // Optional: Skip AI's turn since they drew cards
+                    // You might want to add a "skip turn" mechanism here
+                    break;
+
+                default:
+                    // No special effect for classic cards
+                    break;
+            }
         }
     }
 }

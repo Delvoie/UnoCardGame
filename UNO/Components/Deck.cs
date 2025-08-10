@@ -12,22 +12,22 @@ namespace UNO
         /// <summary>
         /// Red color. Used globally for all red cards.
         /// </summary>
-        public static Color red = Color.FromArgb(0, 57, 53);
+        public static Color red = Color.FromArgb(231, 76, 60);
 
         /// <summary>
         /// Blue color. Used globally for all blue cards.
         /// </summary>
-        public static Color blue = Color.FromArgb(3, 151, 215);
+        public static Color blue = Color.FromArgb(52, 152, 219);
 
         /// <summary>
         /// Green color. Used globally for all green cards.
         /// </summary>
-        public static Color green = Color.FromArgb(3, 167, 81);
+        public static Color green = Color.FromArgb(46, 204, 113);
 
         /// <summary>
         /// Yellow color. Used globally for all yellow cards.
         /// </summary>
-        public static Color yellow = Color.FromArgb(252, 223, 20);
+        public static Color yellow = Color.FromArgb(241, 196, 15);
 
         /// <summary>
         /// Collection of all cards in the deck.
@@ -35,15 +35,25 @@ namespace UNO
         public static List<Card> cards = new List<Card>();
 
         /// <summary>
-        /// Shuffles the deck
+        /// Shuffles the deck using Fisher-Yates algorithm
         /// </summary>
         public static void Shuffle()
         {
+            Random rng = new Random();
+            int n = cards.Count;
 
+            while (n > 1)
+            {
+                n--;
+                int k = rng.Next(n + 1);
+                Card value = cards[k];
+                cards[k] = cards[n];
+                cards[n] = value;
+            }
         }
 
         /// <summary>
-        /// Creates a new playing deck
+        /// Creates a new playing deck with proper UNO card distribution
         /// </summary>
         public static void Create()
         {
@@ -53,31 +63,76 @@ namespace UNO
             // Creates a new instance of the Random class.
             Random r = new Random();
 
-            // Loop runs 108 times. The UNO deck should have exactly that many cards.
-            foreach (var i in Enumerable.Range(0, 108))
+            // Array of all possible colors a card can have.
+            Color[] colors = { red, blue, green, yellow };
+
+            int zIndex = 0;
+
+            // Create numbered cards (0-9) - Standard UNO distribution
+            foreach (Color color in colors)
             {
-                // Array of all possible colors a card can have.
-                // Used to help generate random card colors.
-                Color[] colors = { red, blue, green, yellow };
+                // Add one 0 card per color
+                Card zeroCard = new Card(color, 0);
+                zeroCard.ZIndex = zIndex++;
+                zeroCard.Flip(true);
+                zeroCard.Rotation = r.Next(-180, 180);
+                cards.Add(zeroCard);
 
-                // Creates a card with a random color and number from 0 to 7.
-                Card card = new Card(colors[r.Next(colors.Count())], r.Next(0, 7));
+                // Add two cards for numbers 1-9 per color
+                for (int number = 1; number <= 9; number++)
+                {
+                    for (int count = 0; count < 2; count++)
+                    {
+                        Card card = new Card(color, number);
+                        card.ZIndex = zIndex++;
+                        card.Flip(true);
+                        card.Rotation = r.Next(-180, 180);
+                        cards.Add(card);
+                    }
+                }
 
-                // Assigns the card a Z-Index. This index defines how close the card is
-                // to the user along the Z-axis (like layers).
-                // Important for detecting which card was clicked when multiple cards overlap.
-                card.ZIndex = i;
+                // Add two +2 cards per color (8 total +2 cards)
+                for (int count = 0; count < 2; count++)
+                {
+                    Card plus2Card = new Card(color, UNO.Cards.Type.Plus2);
+                    plus2Card.ZIndex = zIndex++;
+                    plus2Card.Flip(true);
+                    plus2Card.Rotation = r.Next(-180, 180);
+                    cards.Add(plus2Card);
+                }
 
-                // Flips all cards face-down. The boolean parameter prevents any animation from playing,
-                // so it's not visible at the start of the game.
-                card.Flip(true);
-
-                // Sets a random rotation between -180 and 180 degrees. Purely a visual detail, does not affect functionality.
-                card.Rotation = r.Next(-180, 180);
-
-                // Finally, add the card to the deck.
-                cards.Add(card);
+                // TODO: Add Skip and Reverse cards (2 of each color)
+                // For now, adding more numbered cards to reach closer to 108 total
             }
+
+            // Fill remaining slots with random cards to maintain deck size
+            // A proper UNO deck has 108 cards total
+            while (cards.Count < 108)
+            {
+                Color randomColor = colors[r.Next(colors.Length)];
+
+                // Randomly choose between numbered card and +2 card
+                if (r.Next(0, 4) == 0) // 25% chance for +2 card
+                {
+                    Card plus2Card = new Card(randomColor, UNO.Cards.Type.Plus2);
+                    plus2Card.ZIndex = zIndex++;
+                    plus2Card.Flip(true);
+                    plus2Card.Rotation = r.Next(-180, 180);
+                    cards.Add(plus2Card);
+                }
+                else
+                {
+                    int randomNumber = r.Next(0, 10);
+                    Card fillerCard = new Card(randomColor, randomNumber);
+                    fillerCard.ZIndex = zIndex++;
+                    fillerCard.Flip(true);
+                    fillerCard.Rotation = r.Next(-180, 180);
+                    cards.Add(fillerCard);
+                }
+            }
+
+            // Shuffle the deck after creation
+            Shuffle();
         }
 
         /// <summary>
@@ -95,7 +150,7 @@ namespace UNO
         }
 
         /// <summary>
-        /// Update method for the deck. Ensures that each card’s Update method is called.
+        /// Update method for the deck. Ensures that each card's Update method is called.
         /// </summary>
         public static void Update()
         {
@@ -126,8 +181,6 @@ namespace UNO
         /// </summary>
         public static void Click(Form f)
         {
-
-
             // List of cards that the user clicked on.
             // A user may click multiple overlapping cards.
             List<Card> clickedCards = new List<Card>();
@@ -137,15 +190,9 @@ namespace UNO
             {
                 // Get the current card.
                 Card card = cards[i];
-        {
-            // checking to see if the game has already been closed/reset
-            if (f == null || f.IsDisposed || f.Disposing)
-                return;
-        }
 
-
-        // Get mouse position.
-        Point p = f.PointToClient(Cursor.Position);
+                // Get mouse position.
+                Point p = f.PointToClient(Cursor.Position);
 
                 // Card bounds (rectangle).
                 Rectangle bounds = new Rectangle(card.Position.X, card.Position.Y, card.Dimensions.Width, card.Dimensions.Height);
@@ -169,6 +216,22 @@ namespace UNO
 
             // Clear the clicked cards list for the next click.
             clickedCards.Clear();
+        }
+
+        /// <summary>
+        /// Get the count of cards by type in the deck
+        /// </summary>
+        public static int GetCardTypeCount(UNO.Cards.Type cardType)
+        {
+            return cards.Count(card => card.Type == cardType);
+        }
+
+        /// <summary>
+        /// Get the count of cards by color in the deck
+        /// </summary>
+        public static int GetCardColorCount(Color cardColor)
+        {
+            return cards.Count(card => card.Color.ToArgb() == cardColor.ToArgb());
         }
     }
 }
